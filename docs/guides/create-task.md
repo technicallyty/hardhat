@@ -1,10 +1,10 @@
 # Creating a task
 
-This guide will explore the creation of tasks in Hardhat, which are the core component used for automation.
+This guide will explore the creation of tasks in Hardhat, which is a core component for automation.
 
-A task is a JavaScript async function with some associated metadata. This metadata is used by Hardhat to automate some things for you. Arguments parsing, validation, and help messages are taken care of.
+A task is an asynchronous JavaScript function with some associated metadata. This metadata is used by Hardhat to automate some things for you. Arguments parsing, validation, and help messages are taken care of.
 
-Everything you can do in Hardhat is defined as a task. The default actions that come out of the box are built-in tasks and they are implemented using the same APIs that are available to you as a user.
+Everything you can do in Hardhat is defined as a task. The default actions that come out of the box are built-in tasks and they are implemented using the same APIs that are available to you as a developer.
 
 To see the currently available tasks in your project, run `npx hardhat`:
 
@@ -46,9 +46,9 @@ For some ideas, you could create a task to reset the state of a development envi
 
 Let’s go through the process of creating one to interact with a smart contract.
 
-Tasks in Hardhat are asynchronous JavaScript functions that get access to the [Hardhat Runtime Environment](../advanced/hardhat-runtime-environment.md), through which you get access to the configuration, parameters, programmatic access to other tasks and any objects plugins may have injected.
+Tasks in Hardhat are asynchronous JavaScript functions that get access to the [Hardhat Runtime Environment](../advanced/hardhat-runtime-environment.md). This allows you to access the configuration, parameters, and other tasks or objects that plugins may have injected.
 
-For our example we will use Web3.js to interact with our contracts, so we will install the [Web3.js plugin](https://github.com/nomiclabs/hardhat/tree/master/packages/hardhat-web3), which injects a Web3.js instance into the Hardhat environment:
+For our example, if we wish to use Web3.js to interact with our contracts, we will install the [Web3.js plugin](https://github.com/nomiclabs/hardhat/tree/master/packages/hardhat-web3), which injects a Web3.js instance into the Hardhat environment:
 
 ```
 npm install --save-dev @nomiclabs/hardhat-web3 web3
@@ -56,7 +56,7 @@ npm install --save-dev @nomiclabs/hardhat-web3 web3
 
 _Take a look at the [list of Hardhat plugins](../plugins/README.md) to see other available libraries._
 
-Task creation code can go in `hardhat.config.js`, or whatever your configuration file is called. It’s a good place to create simple tasks. If your task is more complex, it's also perfectly valid to split the code into several files and `require` from the configuration file.
+Task creation code can go in your Hardhat configuration file, usually named `hardhat.config.js`. It’s a good place to create simple tasks. If your task is more complex, it's also perfectly valid to split the code into several files and `require` them from the configuration file.
 
 _If you’re writing a Hardhat plugin that adds a task, they can also be created from a separate npm package. Learn more about creating tasks through plugins in our [Building plugins section](../advanced/building-plugins.md)._
 
@@ -174,7 +174,7 @@ task("hello", "Prints 'Hello, World!'", async function(taskArguments, hre, runSu
 });
 ```
 
-`task`'s first argument is the task name. The second one is its description, which is used for printing help messages in the CLI. The third one is an async function that receives the following arguments:
+`task`'s first argument is the task name. The second is its description, which is used for printing help messages in the CLI. The third is an async function that receives the following arguments:
 
 - `taskArguments` is an object with the parsed CLI arguments of the task. In this case, it's an empty object.
 
