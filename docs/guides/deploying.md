@@ -7,7 +7,7 @@ with some ideas and we'd value your opinion on how to best design it.
 
 In the meantime, we recommend deploying your smart contracts using
 scripts. You can deploy the `Greeter` contract from the sample project
-with a deploy script `scripts/deploy.js` like the above one:
+with a deploy script `scripts/deploy.js`:
 
 ```js
 async function main() {
@@ -34,11 +34,13 @@ You can deploy in the `localhost` network following these steps:
 
 2. Open a new terminal and deploy the smart contract in the `localhost` network
 
-    `npx hardhat run --network localhost scripts/deploy.js`
+    `npx hardhat run scripts/deploy.js --network localhost`
 
 As general rule, you can target any network configured in the `hardhat.config.js` 
 
-`npx hardhat run --network <your-network> scripts/deploy.js`
+`npx hardhat run scripts/deploy.js --network <your-network>`
+
+If you'd like to target different networks, you must add them to your Hardhat configuration file. To learn how to add more networks to your config, refer to this [guide](https://hardhat.org/config/#networks-configuration).
 
 
 ### Truffle migrations support
