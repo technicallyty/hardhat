@@ -2,11 +2,11 @@
 
 Hardhat is the new and evolved version of Buidler.
 
-This guide will teach you how to migrate your project from Buidler into Hardhat.
+This guide will teach you how to migrate your project from Buidler to Hardhat.
 
 ## Installing the Hardhat packages
 
-The first thing you need to do to migrate your project, is installing the new npm packages.
+To begin migrating your project, install the new npm packages.
 
 The package `@nomiclabs/buidler` is now `hardhat`. The plugins, which used to have package names like `@nomiclabs/buidler-<name>`,
 are now `@nomiclabs/hardhat-<name>`.
@@ -22,23 +22,23 @@ Global installations of Hardhat are not supported.
 
 ## Adapting your config
 
-You can use your Buidler config in Hardhat mostly unchanged. All you need to do is follow these steps.
+Buidler configs are mostly similar to Hardhats. You can adapt your config to work in Hardhat with the following steps.
 
 ### Renaming your config file
 
-First, you need to rename your config file from `buidler.config.js` to `hardhat.config.js`. Or,
+First, rename your config file from `buidler.config.js` to `hardhat.config.js`. Or,
 if you are using TypeScript, from `buidler.config.ts` to `hardhat.config.ts`.
 
 ### Changing how your plugins are loaded
 
-Then, you have to change how your plugins are loaded. Instead of using the `usePlugin` function, you just
-have to require/import their npm package. For example, if you had
+In Hardhat, plugins are imported, rather than loaded via Buidler's `usePlugin` function.
+For example, if you had
 
 ```js
 usePlugin("@nomiclabs/buidler-ethers");
 ```
 
-you need to replace it with
+replace it with
 
 ```js
 require("@nomiclabs/hardhat-ethers");
