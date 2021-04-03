@@ -9,7 +9,7 @@ Compiled 1 contract successfully
 
 The compiled artifacts will be saved in the `artifacts/` directory by default, or whatever your configured artifacts path is. Look at the [paths configuration section](../config/README.md#path-configuration) to learn how to change it. This directory will be created if it doesn't exist.
 
-After the initial compilation, Hardhat will try to do the least amount of work possible the next time you compile. For example, if you didn't change any file since the last compilation, nothing will be compiled. If you only modified one file, only that file and others affected by it will be recompiled.
+After the initial compilation, Hardhat will try to do the least amount of work possible the next time you compile. For example, if you didn't change any files since the last compilation, nothing will be compiled. If you only modified one file, only that file and others affected by it will be recompiled.
 
 ```
 $ npx hardhat compile
@@ -96,13 +96,13 @@ In this case, `contracts/Foo.sol` will be compiled with solc 0.5.5, no matter wh
 
 Keep in mind that:
 - Overrides are full compiler configurations, so if you have any additional settings you're using you should set them for the override as well.
-- You have to use forward slashes (`/`) even if you are on Windows.
+- You must use forward slashes (`/`) even if you are on Windows.
 
 ## Artifacts
  
 Compiling with Hardhat generates two files per compiled contract (not each `.sol` file): an artifact and a debug file. 
 
-An **artifact** has all the information that is necessary to deploy and interact with the contract. These are compatible with most tools, including Truffle's artifact format. Each artifact consists of a json with the following properties:
+An **artifact** has all the information that is necessary to deploy and interact with the contract. These are compatible with most tools, including Truffle's artifact format. Each artifact contains a JSON file with the following properties:
 
 - `contractName`: A string with the contract's name.
 
