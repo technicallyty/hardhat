@@ -9,7 +9,7 @@ All contracts have already been compiled, skipping compilation.
 
 The `compile` task will be called before opening the console prompt, but you can skip this with the `--no-compile` parameter.
 
-The execution environment for the console is the same as for tasks. This means the configuration has been processed, and the [Hardhat Runtime Environment] initialized and injected into the global scope. For example, that you'll have access in the global scope to the `config` object:
+The execution environment for the console is the same as for tasks. This means the configuration has been processed, and the [Hardhat Runtime Environment] initialized and injected into the global scope. For example, you'll have globally scoped access to the `config` object:
 ```
 > config
 { defaultNetwork: 'hardhat',
@@ -38,7 +38,7 @@ And the initialized `ethers` object if you're using the `hardhat-ethers` plugin:
 
 And the `artifacts` object if you're using the `hardhat-truffle5` plugin, and so on. 
 
-Anything that has been injected into the [Hardhat Runtime Environment] will be magically available in the global scope, or if you're the more explicit kind of developer, you can also require the HRE explicitly and get autocomplete:
+Anything that has been injected into the [Hardhat Runtime Environment] will be magically available in the global scope, or if you're a more explicit kind of developer, you can also require the HRE explicitly and get autocomplete:
 
 TODO-HH: re-run this
 
@@ -58,14 +58,14 @@ hardhat.network               hardhat.run                   hardhat.tasks
 >
 ```
 
-You will also notice that the console has the handy history feature you expect out of most interactive terminals, including across different sessions. Try it by pressing the up arrow key.
+You will also notice that the console keeps a history of your commands, as you'd expect out of most interactive terminals, including across different sessions. Try it by pressing the up arrow key.
 
 ### Asynchronous operations and top-level await
 
 Interacting with the Ethereum network and your smart contracts are asynchronous operations, hence most APIs and libraries
 use JavaScript's `Promise` for returning values.   
 
-To make things easier, Hardhat's console supports `await` top-level await (i.e. `console.log(await web3.eth.getBalance()`). To use this feature, you need to be using Node 10 or higher.
+To make things easier, Hardhat's console supports top-level `await` (i.e. `console.log(await web3.eth.getBalance()`). This feature requires Node 10 or higher.
 
 For any help or feedback you may have, you can find us in the [Hardhat Support Discord server](https://hardhat.org/discord).
 
