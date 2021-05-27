@@ -13,17 +13,21 @@ import type {
   EthSubscription,
   RequestArguments,
 } from "../../../types";
-import { HARDHAT_NETWORK_RESET_EVENT } from "../../constants";
-import { FIRST_SOLC_VERSION_SUPPORTED } from "../stack-traces/solidityTracer";
-import { Mutex } from "../vendor/await-semaphore";
-
 import {
-  HardhatNetworkProviderError,
+  HARDHAT_NETWORK_RESET_EVENT,
+  HARDHAT_NETWORK_REVERT_SNAPSHOT_EVENT,
+} from "../../constants";
+import {
   InvalidInputError,
   MethodNotFoundError,
   MethodNotSupportedError,
-} from "./errors";
+  ProviderError,
+} from "../../core/providers/errors";
+import { FIRST_SOLC_VERSION_SUPPORTED } from "../stack-traces/solidityTracer";
+import { Mutex } from "../vendor/await-semaphore";
+
 import { MiningTimer } from "./MiningTimer";
+import { DebugModule } from "./modules/debug";
 import { EthModule } from "./modules/eth";
 import { EvmModule } from "./modules/evm";
 import { HardhatModule } from "./modules/hardhat";
@@ -58,6 +62,7 @@ export class HardhatNetworkProvider extends EventEmitter
   private _web3Module?: Web3Module;
   private _evmModule?: EvmModule;
   private _hardhatModule?: HardhatModule;
+  private _debugModule?: DebugModule;
   private readonly _mutex = new Mutex();
 
   constructor(
@@ -101,6 +106,9 @@ export class HardhatNetworkProvider extends EventEmitter
 
       if (args.method === "hardhat_reset") {
         this.emit(HARDHAT_NETWORK_RESET_EVENT);
+      }
+      if (args.method === "evm_revert") {
+        this.emit(HARDHAT_NETWORK_REVERT_SNAPSHOT_EVENT);
       }
 
       return result;
@@ -146,7 +154,7 @@ export class HardhatNetworkProvider extends EventEmitter
       this._logger.printLogs();
 
       if (!this._logger.isLoggedError(err)) {
-        if (err instanceof HardhatNetworkProviderError) {
+        if (ProviderError.isProviderError(err)) {
           this._logger.printEmptyLine();
           this._logger.printErrorMessage(err.message);
 
@@ -187,6 +195,10 @@ export class HardhatNetworkProvider extends EventEmitter
 
     if (method.startsWith("hardhat_")) {
       return this._hardhatModule!.processRequest(method, params);
+    }
+
+    if (method.startsWith("debug_")) {
+      return this._debugModule!.processRequest(method, params);
     }
 
     throw new MethodNotFoundError(`Method ${method} not found`);
@@ -255,6 +267,7 @@ export class HardhatNetworkProvider extends EventEmitter
       this._logger,
       this._experimentalHardhatNetworkMessageTraceHooks
     );
+    this._debugModule = new DebugModule(node);
 
     this._forwardNodeEvents(node);
   }

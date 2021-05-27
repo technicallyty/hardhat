@@ -43,24 +43,34 @@ export interface GenesisAccount {
   balance: string | number | BN;
 }
 
+export type AccessListBufferItem = [Buffer, Buffer[]];
+
 export interface CallParams {
-  to: Buffer;
+  to?: Buffer;
   from: Buffer;
   gasLimit: BN;
   gasPrice: BN;
   value: BN;
   data: Buffer;
+  // We use this access list format because @ethereumjs/tx access list data
+  // forces us to use it or stringify them
+  accessList?: AccessListBufferItem[];
 }
 
 export interface TransactionParams {
   // `to` should be undefined for contract creation
-  to: Buffer | undefined;
+  to?: Buffer;
   from: Buffer;
   gasLimit: BN;
   gasPrice: BN;
   value: BN;
   data: Buffer;
   nonce: BN;
+  // We use this access list format because @ethereumjs/tx access list data
+  // forces us to use it or stringify them
+  accessList?: AccessListBufferItem[];
+  // We don't include chainId as it's not necessary, the node
+  // already knows its chainId, and the Eth module must validate it
 }
 
 export interface FilterParams {

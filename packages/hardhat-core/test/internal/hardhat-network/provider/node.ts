@@ -1,13 +1,12 @@
 import { Block } from "@ethereumjs/block";
 import Common from "@ethereumjs/common";
-import { Transaction, TxData } from "@ethereumjs/tx";
-import { PostByzantiumTxReceipt } from "@ethereumjs/vm/dist/runBlock";
+import { TxData, TypedTransaction } from "@ethereumjs/tx";
+import VM from "@ethereumjs/vm";
+import { AfterBlockEvent, RunBlockOpts } from "@ethereumjs/vm/dist/runBlock";
 import { assert } from "chai";
 import { Address, BN, bufferToHex } from "ethereumjs-util";
-import path from "path";
 import sinon from "sinon";
 
-import { numberToRpcQuantity } from "../../../../src/internal/core/providers/provider-utils";
 import { rpcToBlockData } from "../../../../src/internal/hardhat-network/provider/fork/rpcToBlockData";
 import { HardhatNode } from "../../../../src/internal/hardhat-network/provider/node";
 import {
@@ -19,7 +18,10 @@ import { getCurrentTimestamp } from "../../../../src/internal/hardhat-network/pr
 import { makeForkClient } from "../../../../src/internal/hardhat-network/provider/utils/makeForkClient";
 import { ALCHEMY_URL } from "../../../setup";
 import { assertQuantity } from "../helpers/assertions";
-import { EMPTY_ACCOUNT_ADDRESS } from "../helpers/constants";
+import {
+  EMPTY_ACCOUNT_ADDRESS,
+  FORK_TESTS_CACHE_PATH,
+} from "../helpers/constants";
 import {
   DEFAULT_ACCOUNTS,
   DEFAULT_ACCOUNTS_ADDRESSES,
@@ -30,19 +32,15 @@ import {
   DEFAULT_NETWORK_NAME,
 } from "../helpers/providers";
 
+import { assertEqualBlocks } from "./utils/assertEqualBlocks";
+
 // tslint:disable no-string-literal
 
-interface ForkPoint {
+interface ForkedBlock {
   networkName: string;
-  url?: string;
-  /**
-   * Fork block number.
-   * This is the last observable block from the remote blockchain.
-   * Later blocks are all constructed by Hardhat Network.
-   */
-  blockNumber: number;
+  url: string;
+  blockToRun: number;
   chainId: number;
-  hardfork: "istanbul" | "muirGlacier";
 }
 
 describe("HardhatNode", () => {
@@ -109,7 +107,7 @@ describe("HardhatNode", () => {
   });
 
   describe("mineBlock", () => {
-    async function assertTransactionsWereMined(txs: Transaction[]) {
+    async function assertTransactionsWereMined(txs: TypedTransaction[]) {
       for (const tx of txs) {
         const txReceipt = await node.getTransactionReceipt(tx.hash());
         assert.isDefined(txReceipt);
@@ -546,61 +544,73 @@ describe("HardhatNode", () => {
   });
 
   describe("full block", function () {
-    this.timeout(120000);
-    // Note that here `blockNumber` is the number of the forked block, not the number of the "simulated" block.
-    // Tests are written to fork this block and execute all transactions of the block following the forked block.
-    // This means that if the forked block number is 9300076, what the test will do is:
-    //   - setup a forked blockchain based on block 9300076
-    //   - fetch all transactions from 9300077
-    //   - create a new block with them
-    //   - execute the whole block and save it with the rest of the blockchain
-    const forkPoints: ForkPoint[] = [
+    if (ALCHEMY_URL === undefined) {
+      return;
+    }
+
+    const forkedBlocks: ForkedBlock[] = [
+      // We don't run this test against spurious dragon because
+      // its receipts contain the state root, and we can't compute it
       {
         networkName: "mainnet",
         url: ALCHEMY_URL,
-        blockNumber: 9300076,
+        blockToRun: 4370001,
         chainId: 1,
-        hardfork: "muirGlacier",
       },
-      // These are commented out until https://github.com/ethereumjs/ethereumjs-monorepo/pull/1158 gets released.
-      // Otherwise these tests fail because `runBlock` doesn't pass the Common to the new block it generates.
-      // {
-      //   networkName: "kovan",
-      //   url: (ALCHEMY_URL ?? "").replace("mainnet", "kovan"),
-      //   blockNumber: 23115226,
-      //   chainId: 42,
-      //   hardfork: "istanbul",
-      // },
-      // {
-      //   networkName: "rinkeby",
-      //   url: (ALCHEMY_URL ?? "").replace("mainnet", "rinkeby"),
-      //   blockNumber: 8004364,
-      //   chainId: 4,
-      //   hardfork: "istanbul",
-      // },
+      {
+        networkName: "mainnet",
+        url: ALCHEMY_URL,
+        blockToRun: 7280001,
+        chainId: 1,
+      },
+      {
+        networkName: "mainnet",
+        url: ALCHEMY_URL,
+        blockToRun: 9069001,
+        chainId: 1,
+      },
+      {
+        networkName: "mainnet",
+        url: ALCHEMY_URL,
+        blockToRun: 9300077,
+        chainId: 1,
+      },
+      {
+        networkName: "kovan",
+        url: ALCHEMY_URL.replace("mainnet", "kovan"),
+        blockToRun: 23115227,
+        chainId: 42,
+      },
+      {
+        networkName: "rinkeby",
+        url: ALCHEMY_URL.replace("mainnet", "rinkeby"),
+        blockToRun: 8004365,
+        chainId: 4,
+      },
+      {
+        networkName: "ropsten",
+        url: ALCHEMY_URL.replace("mainnet", "ropsten"),
+        blockToRun: 9812365, // this block has a EIP-2930 tx
+        chainId: 3,
+      },
     ];
 
-    for (const {
-      url,
-      blockNumber,
-      networkName,
-      chainId,
-      hardfork,
-    } of forkPoints) {
-      it(`should run a ${networkName} block and produce the same results`, async function () {
-        if (url === undefined || url === "") {
-          this.skip();
-        }
+    for (const { url, blockToRun, networkName, chainId } of forkedBlocks) {
+      const remoteCommon = new Common({ chain: chainId });
+      const hardfork = remoteCommon.getHardforkByBlockNumber(blockToRun);
+
+      it(`should run a ${networkName} block from ${hardfork} and produce the same results`, async function () {
+        this.timeout(120000);
 
         const forkConfig = {
           jsonRpcUrl: url,
-          blockNumber,
+          blockNumber: blockToRun - 1,
         };
 
         const { forkClient } = await makeForkClient(forkConfig);
 
         const rpcBlock = await forkClient.getBlockByNumber(
-          new BN(blockNumber + 1),
+          new BN(blockToRun),
           true
         );
 
@@ -608,7 +618,6 @@ describe("HardhatNode", () => {
           assert.fail();
         }
 
-        const forkCachePath = path.join(__dirname, ".hardhat_node_test_cache");
         const forkedNodeConfig: ForkedNodeConfig = {
           automine: true,
           networkName: "mainnet",
@@ -616,108 +625,79 @@ describe("HardhatNode", () => {
           networkId: 1,
           hardfork,
           forkConfig,
-          forkCachePath,
+          forkCachePath: FORK_TESTS_CACHE_PATH,
           blockGasLimit: rpcBlock.gasLimit.toNumber(),
           genesisAccounts: [],
         };
 
         const [common, forkedNode] = await HardhatNode.create(forkedNodeConfig);
 
-        let block = Block.fromBlockData(rpcToBlockData(rpcBlock), { common });
-
-        block = Block.fromBlockData(
+        const block = Block.fromBlockData(
+          rpcToBlockData({
+            ...rpcBlock,
+            // We wipe the receipt root to make sure we get a new one
+            receiptsRoot: Buffer.alloc(32, 0),
+          }),
           {
-            ...block,
-            header: { ...block.header, receiptTrie: Buffer.alloc(32, 0) },
-          },
-          { common }
+            common,
+            freeze: false,
+          }
         );
 
         forkedNode["_vmTracer"].disableTracing();
 
-        const result = await forkedNode["_vm"].runBlock({
-          block,
-          generate: true,
-          skipBlockValidation: true,
-        });
-
-        // We do this because `generate` is incomplete. This can be removed once
-        // https://github.com/ethereumjs/ethereumjs-monorepo/pull/1158 is merged
-        const modifiedBlock = Block.fromBlockData(
+        const afterBlockEvent = await runBlockAndGetAfterBlockEvent(
+          forkedNode["_vm"],
           {
-            ...block,
-            header: {
-              ...block.header,
-              bloom: result.logsBloom,
-              stateRoot: result.stateRoot,
-              gasUsed: result.gasUsed,
-              receiptTrie: result.receiptRoot,
-            },
-          },
-          { common }
+            block,
+            generate: true,
+            skipBlockValidation: true,
+          }
         );
 
-        await forkedNode["_saveBlockAsSuccessfullyRun"](modifiedBlock, result);
+        const modifiedBlock = afterBlockEvent.block;
 
-        const newBlock = await forkedNode.getBlockByNumber(
-          new BN(blockNumber + 1)
+        await forkedNode["_vm"].blockchain.putBlock(modifiedBlock);
+        await forkedNode["_saveBlockAsSuccessfullyRun"](
+          modifiedBlock,
+          afterBlockEvent
         );
+
+        const newBlock = await forkedNode.getBlockByNumber(new BN(blockToRun));
 
         if (newBlock === undefined) {
           assert.fail();
         }
 
-        const localReceiptRoot = newBlock.header.receiptTrie.toString("hex");
-        const remoteReceiptRoot = rpcBlock.receiptsRoot.toString("hex");
-
-        // We do some manual comparisons here to understand why the root of the receipt tries differ.
-        if (localReceiptRoot !== remoteReceiptRoot) {
-          for (let i = 0; i < block.transactions.length; i++) {
-            const tx = block.transactions[i];
-            const txHash = bufferToHex(tx.hash());
-
-            const remoteReceipt = (await forkClient["_httpProvider"].request({
-              method: "eth_getTransactionReceipt",
-              params: [txHash],
-            })) as any;
-
-            const localReceipt = result.receipts[i];
-            const evmResult = result.results[i];
-
-            assert.equal(
-              bufferToHex(localReceipt.bitvector),
-              remoteReceipt.logsBloom,
-              `Logs bloom of tx index ${i} (${txHash}) should match`
-            );
-
-            assert.equal(
-              numberToRpcQuantity(evmResult.gasUsed.toNumber()),
-              remoteReceipt.gasUsed,
-              `Gas used of tx index ${i} (${txHash}) should match`
-            );
-
-            assert.equal(
-              (localReceipt as PostByzantiumTxReceipt).status,
-              remoteReceipt.status,
-              `Status of tx index ${i} (${txHash}) should be the same`
-            );
-
-            assert.equal(
-              evmResult.createdAddress === undefined
-                ? undefined
-                : `0x${evmResult.createdAddress.toString()}`,
-              remoteReceipt.contractAddress,
-              `Contract address created by tx index ${i} (${txHash}) should be the same`
-            );
-          }
-        }
-
-        assert.equal(
-          localReceiptRoot,
-          remoteReceiptRoot,
-          "The root of the receipts trie is different than expected"
+        await assertEqualBlocks(
+          newBlock,
+          afterBlockEvent,
+          rpcBlock,
+          forkClient
         );
       });
     }
   });
 });
+
+async function runBlockAndGetAfterBlockEvent(
+  vm: VM,
+  runBlockOpts: RunBlockOpts
+): Promise<AfterBlockEvent> {
+  let results: AfterBlockEvent;
+
+  function handler(event: AfterBlockEvent) {
+    results = event;
+  }
+
+  try {
+    vm.once("afterBlock", handler);
+    await vm.runBlock(runBlockOpts);
+  } finally {
+    // We need this in case `runBlock` throws before emitting the event.
+    // Otherwise we'd be leaking the listener until the next call to runBlock.
+    vm.removeListener("afterBlock", handler);
+  }
+
+  return results!;
+}

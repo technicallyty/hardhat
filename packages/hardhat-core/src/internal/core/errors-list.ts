@@ -130,7 +130,7 @@ Check the error message for details, or go to [documentation](https://hardhat.or
       number: 9,
       message: `Error while loading Hardhat's configuration.
      
-You probably tried to import the Hardhat Runtime Environment from your config or a file imported from it.
+You probably tried to import the "hardhat" module from your config or a file imported from it.
 This is not possible, as Hardhat can't be initialized while its config is being defined.
 
 To learn more about how to access the Hardhat Runtime Environment from different contexts go to https://hardhat.org/hre`,
@@ -319,6 +319,16 @@ Please make sure your node is running, and check your internet connection and ne
       description: `One of your HD keys could not be derived. 
 
 Try using another mnemonic or deriving less keys.`,
+      shouldBeReported: false,
+    },
+    INVALID_RPC_DATA_VALUE: {
+      number: 112,
+      message:
+        "Received invalid value `%value%` from/to the node's JSON-RPC, but a Data was expected.",
+      title: "Invalid JSON-RPC value",
+      description: `One of your calls sent or received an invalid JSON-RPC DATA value. 
+
+Please double check your calls' parameters and keep your Ethereum node up to date.`,
       shouldBeReported: false,
     },
   },

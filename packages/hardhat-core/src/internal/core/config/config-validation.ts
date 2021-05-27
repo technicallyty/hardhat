@@ -6,6 +6,7 @@ import {
   HARDHAT_NETWORK_NAME,
   HARDHAT_NETWORK_SUPPORTED_HARDFORKS,
 } from "../../constants";
+import { optional } from "../../util/io-ts";
 import { fromEntries } from "../../util/lang";
 import { HardhatError } from "../errors";
 import { ERRORS } from "../errors-list";
@@ -62,19 +63,8 @@ export const DotPathReporter: Reporter<string[]> = {
   report: (validation) => validation.fold(failure, success),
 };
 
-function optional<TypeT, OutputT>(
-  codec: t.Type<TypeT, OutputT, unknown>,
-  name: string = `${codec.name} | undefined`
-): t.Type<TypeT | undefined, OutputT | undefined, unknown> {
-  return new t.Type(
-    name,
-    (u: unknown): u is TypeT | undefined => u === undefined || codec.is(u),
-    (u, c) => (u === undefined ? t.success(u) : codec.validate(u, c)),
-    (a) => (a === undefined ? undefined : codec.encode(a))
-  );
-}
-
 const HEX_STRING_REGEX = /^(0x)?([0-9a-f]{2})+$/gi;
+const DEC_STRING_REGEX = /^(0|[1-9][0-9]*)$/g;
 
 function isHexString(v: unknown): v is string {
   if (typeof v !== "string") {
@@ -84,6 +74,14 @@ function isHexString(v: unknown): v is string {
   return v.trim().match(HEX_STRING_REGEX) !== null;
 }
 
+function isDecimalString(v: unknown): v is string {
+  if (typeof v !== "string") {
+    return false;
+  }
+
+  return v.match(DEC_STRING_REGEX) !== null;
+}
+
 export const hexString = new t.Type<string>(
   "hex string",
   isHexString,
@@ -91,12 +89,18 @@ export const hexString = new t.Type<string>(
   t.identity
 );
 
+export const decimalString = new t.Type<string>(
+  "decimal string",
+  isDecimalString,
+  (u, c) => (isDecimalString(u) ? t.success(u) : t.failure(u, c)),
+  t.identity
+);
 // TODO: These types have outdated name. They should match the UserConfig types.
 // IMPORTANT: This t.types MUST be kept in sync with the actual types.
 
 const HardhatNetworkAccount = t.type({
   privateKey: hexString,
-  balance: t.string,
+  balance: decimalString,
 });
 
 const commonHDAccountsFields = {
@@ -107,7 +111,7 @@ const commonHDAccountsFields = {
 
 const HardhatNetworkHDAccountsConfig = t.type({
   mnemonic: optional(t.string),
-  accountsBalance: optional(t.string),
+  accountsBalance: optional(decimalString),
   ...commonHDAccountsFields,
 });
 
@@ -262,6 +266,14 @@ export function getValidationErrors(config: any): string[] {
                 `HardhatConfig.networks.${HARDHAT_NETWORK_NAME}.accounts[].balance`,
                 account.balance,
                 "string"
+              )
+            );
+          } else if (decimalString.decode(account.balance).isLeft()) {
+            errors.push(
+              getErrorMessage(
+                `HardhatConfig.networks.${HARDHAT_NETWORK_NAME}.accounts[].balance`,
+                account.balance,
+                "decimal(wei)"
               )
             );
           }
